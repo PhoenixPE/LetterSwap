@@ -1,13 +1,14 @@
 #NoTrayIcon
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Outfile_type=a3x
 #AutoIt3Wrapper_Icon=LetterSwap.ico
-#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.exe
-#AutoIt3Wrapper_Compile_Both=y
+#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.a3x
+#AutoIt3Wrapper_UseX64=n
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2019.2.9.21
+#AutoIt3Wrapper_Res_Fileversion=2019.2.10.3
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2018.2.9
+#AutoIt3Wrapper_Res_ProductVersion=2018.10.9
 #AutoIt3Wrapper_Res_LegalCopyright=(c)Nikzzzz
 #AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\CheckSumPe.exe /c "%out%"
 #AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\signtool.exe sign /f "%scitedir%\CheckSum\Sert\Sert.pfx" "%out%"
@@ -24,7 +25,7 @@ Opt('MustDeclareVars', 1)
 Opt('TrayIconHide', 1)
 Opt('ExpandEnvStrings', 1)
 
-Global $sAboot = "                (c)Nikzzzz 09.02.2019"
+Global $sAboot = "                (c)Nikzzzz 10.02.2019"
 Global $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/Save] [/BootDrive NewLetter:[\TagFile]] [/SetLetter NewLetter:\TagFile] [/RestartExplorer] [/log [LogFile|con:]] [/IgnoreLetter Letters] [/Swap Drive: Drive:] [/wait 10]" & @CRLF
 
 
@@ -35,7 +36,7 @@ EndIf
 Global $sHostKey = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 Global $sGuestKey = "HKEY_LOCAL_MACHINE\GuestSYSTEM\MountedDevices"
 Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = 'yz', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '', $iLetterClean = 0, $iMountAll = 0
-Global $sNewBootDrive = '', $s = "", $i = 1, $iWait = 100, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
+Global $sNewBootDrive = '', $s = "", $i = 1, $iWait0 = 100, $iWait, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
 Local $vTemp, $aDrives, $sLetterGuest, $sLetterHost, $sNewDrive1 = ''
 While $i <= $CmdLine[0]
 	$vTemp = StringLower($CmdLine[$i])
@@ -86,7 +87,7 @@ While $i <= $CmdLine[0]
 		Case "/wait"
 			If $i < $CmdLine[0] Then
 				$i += 1
-				If Number($CmdLine[$i]) > 0 Then $iWait = Number($CmdLine[$i]) * 10
+				If Number($CmdLine[$i]) >= 0 Then $iWait0 = Number($CmdLine[$i]) * 10
 			EndIf
 		Case "/?", "/help"
 			MsgBox(4096, @ScriptName & $sAboot, $sHelp)
@@ -141,7 +142,8 @@ If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system')
 EndIf
 
 If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
-	While $iWait > 0
+  $iWait=$iWait0
+	While $iWait >= 0
 		$aDrives = DriveGetDrive('all')
 		For $i = 1 To UBound($aDrives) - 1
 			If Not FileExists($aDrives[$i] & '\' & $sTagFile1) Then ContinueLoop
@@ -155,7 +157,8 @@ If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
 EndIf
 
 If $sNewBootDrive <> '' Then
-	While $iWait > 0
+  $iWait=$iWait0
+	While $iWait >= 0
 		$sBootDrive = _GetBootDrive($sTagFile)
 		If $sBootDrive <> '' Then
 			_LogOutN('Found BootDrive : "' & $sBootDrive & '"')
@@ -185,7 +188,7 @@ _LogOutN("----- Finish  " & @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":"
 Exit
 
 Func _GetBootDrive($sTagFile)
-	Local $vDriveList, $i, $i1
+	Local $vDriveList, $i, $i1, $hF, $bData
 	Local $sStartOpt = RegRead('HKLM\SYSTEM\CurrentControlSet\Control', 'SystemStartOptions')
 	Local $vTmp = StringRegExp($sStartOpt, '(?i)MININT\s.*RDPATH=(?:.*\)(\w+)\((\d+)\))?(\\.*)', 2)
 	If @error Then Return ''
@@ -197,7 +200,7 @@ Func _GetBootDrive($sTagFile)
 			$vDriveList = 'REMOVABLE,FIXED,NETWORK'
 		Case Else
 			$vDriveList = 'REMOVABLE,FIXED,NETWORK,CDROM'
-	EndSwitch
+  EndSwitch
 	$vDriveList = StringSplit($vDriveList, ',', 2)
 	For $i = 0 To UBound($vDriveList) - 1
 		Local $asDriveLetter = DriveGetDrive($vDriveList[$i])
@@ -209,7 +212,16 @@ Func _GetBootDrive($sTagFile)
 			If $sTagFile <> '' Then
 				If Not FileExists($asDriveLetter[$i1] & '\' & $sTagFile) Then ContinueLoop
 			EndIf
-			If FileExists($asDriveLetter[$i1] & $vTmp[3]) Then Return $asDriveLetter[$i1]
+			If FileExists($asDriveLetter[$i1] & $vTmp[3]) Then
+				If FileExists(EnvGet('SystemDrive') & '\$WIMDESC') Then
+					$hF = FileOpen($asDriveLetter[$i1] & $vTmp[3], 16)
+					FileSetPos($hF, FileGetSize($asDriveLetter[$i1] & $vTmp[3]) - 32768, 0)
+					$bData = FileRead($hF)
+					FileClose($hF)
+					If StringInStr(StringMid($bData,3), StringMid(_FileRead(EnvGet('SystemDrive') & '\$WIMDESC', 16),3)) = 0 Then ContinueLoop
+				EndIf
+				Return $asDriveLetter[$i1]
+			EndIf
 		Next
 	Next
 	Return ''
@@ -382,3 +394,14 @@ Func _MountSwap($sDrive1, $sDrive2)
 	Return 0
 EndFunc   ;==>_MountSwap
 
+Func _FileRead($sFile, $iMode = 0)
+	Local $vData
+	If $sFile = 'con:' Or $sFile = 'con' Then
+		$vData = ConsoleRead()
+	Else
+		Local $hF = FileOpen($sFile, $iMode)
+		Local $vData = FileRead($hF)
+		FileClose($hF)
+	EndIf
+	Return $vData
+EndFunc   ;==>_FileRead
