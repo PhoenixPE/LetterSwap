@@ -1,36 +1,34 @@
 #NoTrayIcon
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Outfile_type=a3x
 #AutoIt3Wrapper_Icon=LetterSwap.ico
-#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.a3x
-#AutoIt3Wrapper_UseX64=n
+#AutoIt3Wrapper_Outfile=..\bin\x86\LetterSwap.exe
+#AutoIt3Wrapper_Outfile_x64=..\bin\x64\LetterSwap.exe
+#AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2019.2.10.3
+#AutoIt3Wrapper_Res_Fileversion=2019.2.10.5
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2018.10.9
+#AutoIt3Wrapper_Res_ProductVersion=2019.2.10
 #AutoIt3Wrapper_Res_LegalCopyright=(c)Nikzzzz
-#AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\CheckSumPe.exe /c "%out%"
-#AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\signtool.exe sign /f "%scitedir%\CheckSum\Sert\Sert.pfx" "%out%"
-#AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\CheckSumPe.exe /c "%outx64%"
-#AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\signtool.exe sign /f "%scitedir%\CheckSum\Sert\Sert.pfx" "%outx64%"
+#AutoIt3Wrapper_Res_Language=1033
 #AutoIt3Wrapper_Run_Au3Stripper=y
-#Au3Stripper_Parameters=/pe /sf /sv
+#Au3Stripper_Parameters=/so
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+
 #include <WinAPIFiles.au3>
-#include <Reg.au3>
-#include <Security.au3>
+#include ".\Reg.au3"
+#include ".\SecurityEx.au3"
 
 Opt('MustDeclareVars', 1)
 Opt('TrayIconHide', 1)
 Opt('ExpandEnvStrings', 1)
 
-Global $sAboot = "                (c)Nikzzzz 10.02.2019"
+Global $sAbout = "                (c)Nikzzzz 10.02.2019"
 Global $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/Save] [/BootDrive NewLetter:[\TagFile]] [/SetLetter NewLetter:\TagFile] [/RestartExplorer] [/log [LogFile|con:]] [/IgnoreLetter Letters] [/Swap Drive: Drive:] [/wait 10]" & @CRLF
 
 
 If $CmdLine[0] = 0 Then
-	MsgBox(4096, @ScriptName & $sAboot, $sHelp)
+	MsgBox(4096, @ScriptName & $sAbout, $sHelp)
 	Exit
 EndIf
 Global $sHostKey = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
@@ -90,7 +88,7 @@ While $i <= $CmdLine[0]
 				If Number($CmdLine[$i]) >= 0 Then $iWait0 = Number($CmdLine[$i]) * 10
 			EndIf
 		Case "/?", "/help"
-			MsgBox(4096, @ScriptName & $sAboot, $sHelp)
+			MsgBox(4096, @ScriptName & $sAbout, $sHelp)
 			Exit
 		Case "/RestartExplorer"
 			$sRestartExplorer = True
