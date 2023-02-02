@@ -50,7 +50,7 @@ EndIf
 Return BitOR(BitShift(DllStructGetData($tOSVI, 'MajorVersion'), -8), DllStructGetData($tOSVI, 'MinorVersion'))
 EndFunc
 Opt('TrayIconHide', 1)
-$sAboot = "                @Nikzzzz 30.12.2011"
+$sAboot = "                @Nikzzzz 26.10.2012"
 $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/BootDrive NewLetter:\DriveMarkerFile] [/log LogFile] [/IgnoreLetter Letters] [/wait 10]" & @CRLF
 Global $sReg = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 If $CmdLine[0] = 0 Then
@@ -113,6 +113,7 @@ EndSwitch
 $i += 1
 WEnd
 LogOut("Command line:" & @CRLF & $CmdLineRaw & @CRLF)
+$sIgnoreLetter &= StringLeft(EnvGet('SystemDrive'), 1)
 If FileExists($sHiveSystemGuest & '\system32\config\system') Then
 MountGet($sReg, $aMountHost)
 RunWait('reg.exe load hklm\GuestSYSTEM "' & $sHiveSystemGuest & '\system32\config\system"', '', @SW_HIDE)
@@ -128,7 +129,7 @@ Next
 RunWait('reg.exe unload hklm\GuestSYSTEM', '', @SW_HIDE)
 For $i = 1 To UBound($aMountHost, 1) - 1
 $sLetterHost = $aMountHost[$i][2]
-If $sLetterHost <> '' And StringInStr($sIgnoreLetter & StringLeft(EnvGet('SystemDrive'), 1), $sLetterHost) = 0 Then
+If $sLetterHost <> '' And StringInStr($sIgnoreLetter, $sLetterHost) = 0 Then
 $sLetterGuest = ''
 For $j = 1 To UBound($aMountGuest, 1) - 1
 If $aMountHost[$i][0] = $aMountGuest[$j][0] Then
@@ -136,7 +137,7 @@ $sLetterGuest = $aMountGuest[$j][2]
 ExitLoop
 EndIf
 Next
-If($sLetterHost = $sLetterGuest) Or($sLetterGuest = '') Then ContinueLoop
+If($sLetterHost = $sLetterGuest) Or($sLetterGuest = '') Or StringInStr($sIgnoreLetter, $sLetterGuest) Then ContinueLoop
 LogOut("Swap letter " & $sLetterHost & ': <> ' & $sLetterGuest & ':' & @CRLF)
 $iLetterHostSwap = 0
 For $k = 1 To UBound($aMountHost, 1) - 1
