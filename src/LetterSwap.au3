@@ -1,11 +1,12 @@
 #NoTrayIcon
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Outfile_type=a3x
 #AutoIt3Wrapper_Icon=LetterSwap.ico
-#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.exe
-#AutoIt3Wrapper_Compile_Both=y
+#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.a3x
+#AutoIt3Wrapper_UseX64=n
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2019.2.8.16
+#AutoIt3Wrapper_Res_Fileversion=2019.2.8.18
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
 #AutoIt3Wrapper_Res_ProductVersion=2018.2.8
 #AutoIt3Wrapper_Res_LegalCopyright=(c)Nikzzzz
@@ -147,7 +148,7 @@ If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
 			If Not FileExists($aDrives[$i] & '\' & $sTagFile1) Then ContinueLoop
 			_LogOutN('Found TagFile : "' & $aDrives[$i] & '\' & $sTagFile1 & '"')
 			_MountSwap($aDrives[$i], $sNewDrive1)
-			ExitLoop
+			ExitLoop -2
 		Next
 		$iWait -= 1
 		Sleep(100)
