@@ -1,14 +1,13 @@
 #NoTrayIcon
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Outfile_type=a3x
 #AutoIt3Wrapper_Icon=LetterSwap.ico
-#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.a3x
-#AutoIt3Wrapper_UseX64=n
+#AutoIt3Wrapper_Outfile=d:\__Proect\LetterSwapAu3\LetterSwap.exe
+#AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2019.2.8.18
+#AutoIt3Wrapper_Res_Fileversion=2019.2.9.21
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2018.2.8
+#AutoIt3Wrapper_Res_ProductVersion=2018.2.9
 #AutoIt3Wrapper_Res_LegalCopyright=(c)Nikzzzz
 #AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\CheckSumPe.exe /c "%out%"
 #AutoIt3Wrapper_Run_After=%scitedir%\CheckSum\signtool.exe sign /f "%scitedir%\CheckSum\Sert\Sert.pfx" "%out%"
@@ -25,7 +24,7 @@ Opt('MustDeclareVars', 1)
 Opt('TrayIconHide', 1)
 Opt('ExpandEnvStrings', 1)
 
-Global $sAboot = "                (c)Nikzzzz 08.02.2019"
+Global $sAboot = "                (c)Nikzzzz 09.02.2019"
 Global $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/Save] [/BootDrive NewLetter:[\TagFile]] [/SetLetter NewLetter:\TagFile] [/RestartExplorer] [/log [LogFile|con:]] [/IgnoreLetter Letters] [/Swap Drive: Drive:] [/wait 10]" & @CRLF
 
 
@@ -35,14 +34,14 @@ If $CmdLine[0] = 0 Then
 EndIf
 Global $sHostKey = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 Global $sGuestKey = "HKEY_LOCAL_MACHINE\GuestSYSTEM\MountedDevices"
-Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = 'yz', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '',$iLetterClean=0,$iMountAll=1
+Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = 'yz', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '', $iLetterClean = 0, $iMountAll = 0
 Global $sNewBootDrive = '', $s = "", $i = 1, $iWait = 100, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
 Local $vTemp, $aDrives, $sLetterGuest, $sLetterHost, $sNewDrive1 = ''
 While $i <= $CmdLine[0]
 	$vTemp = StringLower($CmdLine[$i])
 	Switch $vTemp
 		Case "/MountAll"
-			$iMountAll=1
+			$iMountAll = 1
 		Case "/auto"
 			$aDrives = DriveGetDrive("FIXED")
 			For $k = 1 To $aDrives[0]
@@ -81,7 +80,7 @@ While $i <= $CmdLine[0]
 				$i += 2
 			EndIf
 		Case "/HideLetter"
-			$iLetterClean=1
+			$iLetterClean = 1
 		Case "/Save"
 			$fSave = True
 		Case "/wait"
@@ -107,7 +106,7 @@ WEnd
 _LogOutN("----- Start " & @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & "  Command Line: " & @ScriptName & $CmdLineRaw & @CRLF)
 $sIgnoreLetter &= StringLeft(EnvGet('SystemDrive'), 1)
 If $iMountAll Then _MountAll()
-if $iLetterClean Then _LetterClean('Removable;CDROM')
+If $iLetterClean Then _LetterClean('Removable;CDROM')
 If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system') Then
 	_LogOutN('Hosts System : ' & EnvGet('SystemRoot'))
 	_LogOutN('Guest System : ' & $sSystemGuest & @CRLF)
@@ -148,7 +147,7 @@ If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
 			If Not FileExists($aDrives[$i] & '\' & $sTagFile1) Then ContinueLoop
 			_LogOutN('Found TagFile : "' & $aDrives[$i] & '\' & $sTagFile1 & '"')
 			_MountSwap($aDrives[$i], $sNewDrive1)
-			ExitLoop -2
+			ExitLoop 2
 		Next
 		$iWait -= 1
 		Sleep(100)
@@ -266,7 +265,7 @@ Func _FreeLetter()
 EndFunc   ;==>_FreeLetter
 
 Func _LetterClean($sdrivetype)
-  _MountAll()
+	_MountAll()
 	Local $i, $sFreeLetter, $asMount[1][3], $aRet[1]
 	_MountGet($sHostKey, $asMount)
 	For $i = 1 To UBound($asMount) - 1
@@ -274,7 +273,7 @@ Func _LetterClean($sdrivetype)
 			$aRet = DllCall('kernel32.dll', 'bool', 'GetVolumeInformationW', 'wstr', $asMount[$i][1], 'wstr', '', 'dword', 4096, 'dword*', 0, 'dword*', 0, 'dword*', 0, 'wstr', '', 'dword', 4096)
 			If @error Or Not $aRet[0] Then
 				If $asMount[$i][1] Then _WinAPI_DeleteVolumeMountPoint($asMount[$i][1] & ":\")
-        _LogOutN('UnMount ' & $asMount[$i][1])
+				_LogOutN('UnMount ' & $asMount[$i][1])
 			EndIf
 		EndIf
 	Next
