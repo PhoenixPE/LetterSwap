@@ -2,7 +2,7 @@
 #AutoIt3Wrapper_Icon=ReMount1.ico
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterBootSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=1.1.0.12
+#AutoIt3Wrapper_Res_Fileversion=1.2.0.1
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=y
 #AutoIt3Wrapper_Res_LegalCopyright=@Nikzzzz
 #Tidy_Parameters=/sfc
@@ -33,7 +33,10 @@ While $i <= $CmdLine[0]
 		Case "/auto"
 			$aDrives = DriveGetDrive("FIXED")
 			For $k = 1 To $aDrives[0]
-				If FileExists($aDrives[$k] & '\windows\system32\config\system') Then $sHiveSystemGuest = $aDrives[$k] & '\windows'
+				If $aDrives[$k] <> EnvGet("SystemDrive") And FileExists($aDrives[$k] & '\windows\system32\config\system') Then
+					$sHiveSystemGuest = $aDrives[$k] & '\windows'
+					ExitLoop
+				EndIf
 			Next
 		Case "/manual"
 			$sHiveSystemGuest = FileSelectFolder("Select OS  (Example: d:\Windows)", 1)
@@ -100,8 +103,8 @@ If FileExists($sHiveSystemGuest & '\system32\config\system') Then
 			$aMountGuest[UBound($aMountGuest, 1) - 1][1] = Conv(RegRead($sKey, $sValueName))
 			LogOut($sLetter & ' - ' & $aMountGuest[UBound($aMountGuest, 1) - 1][1] & @CRLF)
 		Next
-		RunWait('reg.exe unload hklm\GuestSYSTEM', '', @SW_HIDE)
 	Next
+	RunWait('reg.exe unload hklm\GuestSYSTEM', '', @SW_HIDE)
 	For $i = 1 To UBound($aMountHost, 1) - 1
 		$sLetterHost = $aMountHost[$i][0]
 		$sLetterGuest = ''
