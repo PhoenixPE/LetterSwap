@@ -28,7 +28,7 @@ EndFunc   ;==>_WinAPI_SetVolumeMountPoint
 Opt('MustDeclareVars', 1)
 Opt('TrayIconHide', 1)
 Opt('ExpandEnvStrings', 1)
-Global $sAboot = "                (c)Nikzzzz 27.10.2017"
+Global $sAboot = "                (c)Nikzzzz 05.01.2018"
 Global $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/Save] [/BootDrive NewLetter:\TagFile] [/RestartExplorer] [/log LogFile] [/IgnoreLetter Letters] [/Swap Drive: Drive:] [/wait 10]" & @CRLF
 Global $sReg = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 If $CmdLine[0] = 0 Then
@@ -100,7 +100,7 @@ While $i <= $CmdLine[0]
 WEnd
 LogOut("----- Start " & @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & "  Command Line: " & @ScriptName & $CmdLineRaw & @CRLF & @CRLF)
 $sIgnoreLetter &= StringLeft(EnvGet('SystemDrive'), 1)
-If FileExists($sHiveSystemGuest & '\system32\config\system') Then
+If $sHiveSystemGuest <> '' And FileExists($sHiveSystemGuest & '\system32\config\system') Then
 	$sGuest = StringLeft($sHiveSystemGuest, 2)
 	MountGet($sReg, $aMountHost)
 	Test('...... Host:  ' & $sReg, $aMountHost)
@@ -120,7 +120,7 @@ If FileExists($sHiveSystemGuest & '\system32\config\system') Then
 				ExitLoop
 			EndIf
 		Next
-		If ($sLetterHost = $sLetterGuest) Or ($sLetterHost = '') Then ContinueLoop
+		If ($sLetterHost = $sLetterGuest) Or ($sLetterHost = '') Or StringInStr($sIgnoreLetter, $sLetterHost) Then ContinueLoop
 		MountSwap($sLetterHost & ':\', $sLetterGuest & ':\')
 		LogOut("Swap letter " & $sLetterHost & ': <> ' & $sLetterGuest & ':' & @CRLF)
 	Next
