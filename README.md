@@ -29,4 +29,4 @@ USAGE: `LetterSwap.exe [/Swap <DriveLetter1>: <DriveLetter2>:] [/HideLetter|/Mou
 |/RestartExplorer                    | Restart Explorer.exe after letter change.|
 |/IgnoreLetter <Letter>[...]         | When used in conjunction with /Auto, /Manual, or /WinDir ignore the specified drive letters. (The system drive and letters y,z are always ignored.) Ex. Letterswap.exe /IgnoreLetter abde|
 |/IgnoreCD                           | When used in conjunction with /Auto, /Manual, or /WinDir ignore all driveletters belonging to CDROM drives.|
-|/Log <LogFile>`|`con:               | Output to the specified log file or console.|
+|/Log <LogFile> or <con:>               | Output to the specified log file or console.|
