@@ -3,17 +3,20 @@
 #AutoIt3Wrapper_Icon=LetterSwap.ico
 #AutoIt3Wrapper_Outfile=..\bin\x86\LetterSwap.exe
 #AutoIt3Wrapper_Outfile_x64=..\bin\x64\LetterSwap.exe
+#AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Compile_Both=y
+#AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2019.2.10.5
+#AutoIt3Wrapper_Res_Fileversion=2024.5.27.79
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2019.2.10
-#AutoIt3Wrapper_Res_LegalCopyright=(c)Nikzzzz
+#AutoIt3Wrapper_Res_ProductVersion=2024.5.27
+#AutoIt3Wrapper_Res_LegalCopyright=(c) Nikzzzz, Homes32 & Contributors
 #AutoIt3Wrapper_Res_Language=1033
 #AutoIt3Wrapper_Run_Au3Stripper=y
-#Au3Stripper_Parameters=/so
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+
+; AutoIt 3.3.16.1
 
 #include <WinAPIFiles.au3>
 #include ".\Reg.au3"
@@ -23,25 +26,58 @@ Opt('MustDeclareVars', 1)
 Opt('TrayIconHide', 1)
 Opt('ExpandEnvStrings', 1)
 
-Global $sAbout = "                (c)Nikzzzz 10.02.2019"
-Global $sHelp = @ScriptName & " [/HideLetter|/MountAll] [/Auto|/Manual|WinDir] [/Save] [/BootDrive NewLetter:[\TagFile]] [/SetLetter NewLetter:\TagFile] [/RestartExplorer] [/log [LogFile|con:]] [/IgnoreLetter Letters] [/Swap Drive: Drive:] [/wait 10]" & @CRLF
-
+Global $sAbout = "LetterSwap v" & FileGetVersion(@ScriptFullPath) & " (c) Nikzzzz, Homes32 & Contributors"
+Global $sUsage = "USAGE: " & @ScriptName & " [/Swap <DriveLetter1>: <DriveLetter2>:] [/HideLetter|/MountAll] [/Auto|/Manual|/WinDir <Path>] [/BootDrive <NewLetter>:[\<TagFile>]] [/SetLetter <NewLetter>:\TagFile] [/Wait <Seconds>] [/Save] [/RestartExplorer] [/IgnoreLetter <Letters>] [/IgnoreCD] [/Log <LogFile>|con:]" & @CRLF
+Global $sHelp = @CRLF & "Swap drive letters and/or synchronize letters of disks on based on the registry of the guest OS." & @CRLF _
+		& "" & @CRLF _
+		& $sUsage & @CRLF _
+		& "  /HideLetter                          Hides inactive removable and CDROM disks." & @CRLF _
+		& "  /MountAll                            Mount inactive disks to the first available drive letter." & @CRLF _
+		& "  /Swap <DriveLetter1> <DriveLetter2>  Swap the specified drive letters." & @CRLF _
+		& "                                         Ex. LetterSwap.exe /Swap D: E:" & @CRLF _
+		& "  /Auto                                Find the first guest OS." & @CRLF _
+		& "  /Manual                              Display a dialog prompting to select the guest OS Windows directory." & @CRLF _
+		& "  /WinDir <Path>                       Specify the directory of the guest OS. (Ex. D:\Windows)" & @CRLF _
+		& "  /BootDrive <NewLetter>:              Assigns the boot disk the specified drive letter." & @CRLF _
+		& "  /BootDrive <NewLetter>:\<TagFile>    Search for <TagFile> and assign the boot disk the specified drive letter." & @CRLF _
+		& "                                         Ex. Letterswap.exe /Auto /BootDrive Y:\USB.Y" & @CRLF _
+		& "  /SetLetter <NewLetter>:\<TagFile>    Search for <TagFile> and assign the disk the specified drive letter." & @CRLF _
+		& "                                         Ex. Letterswap.exe /SetLetter Z:\File.tag" & @CRLF _
+		& "  /Wait <Seconds>                      Used in conjunction with /BootDrive or /SetLetter to define the number of" & @CRLF _
+        & "                                       seconds to wait for drives to become available." & @CRLF _
+		& "  /Save                                When used in conjunction with /Auto, /Manual, or /WinDir save the Guest" & @CRLF _
+		& "                                       and Source drive letters to the registry (HKLM\SOFTWARE\LetterSwap)." & @CRLF _
+		& "  /RestartExplorer                     Restart Explorer.exe after letter change." & @CRLF _
+		& "  /IgnoreLetter <Letter>[...]          When used in conjunction with /Auto, /Manual, or /WinDir ignore the specified" & @CRLF _
+		& "                                       drive letters. (The system drive and letters y,z are always ignored.)" & @CRLF _
+		& "                                         Ex. Letterswap.exe /IgnoreLetter abde" & @CRLF _
+		& "  /IgnoreCD                            When used in conjunction with /Auto, /Manual, or /WinDir ignore all drive" & @CRLF _
+		& "                                       letters belonging to CDROM drives." & @CRLF _
+		& "  /Log <LogFile>|con:                  Output to the specified log file or console." & @CRLF _
+		& " " & @CRLF
 
 If $CmdLine[0] = 0 Then
-	MsgBox(4096, @ScriptName & $sAbout, $sHelp)
+	ConsoleWrite(@CRLF & $sAbout & @CRLF & @CRLF & $sUsage & @CRLF)
 	Exit
 EndIf
+
 Global $sHostKey = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 Global $sGuestKey = "HKEY_LOCAL_MACHINE\GuestSYSTEM\MountedDevices"
-Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = 'yz', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '', $iLetterClean = 0, $iMountAll = 0
+Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = '', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '', $iLetterClean = 0, $iMountAll = 0
 Global $sNewBootDrive = '', $s = "", $i = 1, $iWait0 = 100, $iWait, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
-Local $vTemp, $aDrives, $sLetterGuest, $sLetterHost, $sNewDrive1 = ''
+Local $aDrives, $sLetterGuest, $sLetterHost, $sNewDrive1 = ''
+
+; Process Cmdline
 While $i <= $CmdLine[0]
-	$vTemp = StringLower($CmdLine[$i])
-	Switch $vTemp
+	Switch $CmdLine[$i]
+		Case "/?", "/h"
+			ConsoleWrite(@CRLF & $sAbout & @CRLF & $sHelp & @CRLF)
+			Exit
+		Case "/HideLetter"
+			$iLetterClean = 1
 		Case "/MountAll"
 			$iMountAll = 1
-		Case "/auto"
+		Case "/Auto"
 			$aDrives = DriveGetDrive("FIXED")
 			For $k = 1 To $aDrives[0]
 				If $aDrives[$k] <> EnvGet("SystemDrive") And FileExists($aDrives[$k] & '\windows\system32\config\system') Then
@@ -49,72 +85,88 @@ While $i <= $CmdLine[0]
 					ExitLoop
 				EndIf
 			Next
-		Case "/manual"
-			$sSystemGuest = FileSelectFolder("Select OS  (Example: d:\Windows)", 1)
-		Case "/bootdrive"
+		Case "/Manual"
+			$sSystemGuest = FileSelectFolder("Select the OS directory (Example: d:\Windows)", 1)
+		Case "/WinDir"
+			$i += 1
+			$sSystemGuest = $CmdLine[$i]
+		Case "/BootDrive"
 			If $i < $CmdLine[0] Then
 				$i += 1
 				$sNewBootDrive = StringLeft($CmdLine[$i], 2)
 				$sTagFile = StringMid($CmdLine[$i], 4)
 			EndIf
-		Case "/setletter"
+		Case "/SetLetter"
 			If $i < $CmdLine[0] Then
 				$i += 1
 				$sNewDrive1 = StringLeft($CmdLine[$i], 2)
 				$sTagFile1 = StringMid($CmdLine[$i], 4)
-			EndIf
-		Case "/log"
-			If $i < $CmdLine[0] Then
-				$i += 1
-				$sLogFile = $CmdLine[$i]
-			EndIf
-		Case "/IgnoreLetter"
-			If $i < $CmdLine[0] Then
-				$i += 1
-				$sIgnoreLetter = $CmdLine[$i]
 			EndIf
 		Case "/Swap"
 			If ($i + 2) <= $CmdLine[0] Then
 				_MountSwap($CmdLine[$i + 1], $CmdLine[$i + 2])
 				$i += 2
 			EndIf
-		Case "/HideLetter"
-			$iLetterClean = 1
+		Case "/IgnoreLetter", "/IgnoreLetters"
+			If $i < $CmdLine[0] Then
+				$i += 1
+				$sIgnoreLetter = StringUpper($CmdLine[$i])
+			EndIf
+		Case "/IgnoreCD"
+			$aDrives = DriveGetDrive("CDROM")
+			For $k = 1 To $aDrives[0]
+				$sIgnoreLetter &= StringUpper(StringLeft($aDrives[$k], 1))
+			Next
+		Case "/Log"
+			If $i < $CmdLine[0] Then
+				$i += 1
+				$sLogFile = $CmdLine[$i]
+			EndIf
+		Case "/RestartExplorer"
+			$sRestartExplorer = True
 		Case "/Save"
 			$fSave = True
-		Case "/wait"
+		Case "/Wait"
 			If $i < $CmdLine[0] Then
 				$i += 1
 				If Number($CmdLine[$i]) >= 0 Then $iWait0 = Number($CmdLine[$i]) * 10
 			EndIf
-		Case "/?", "/help"
-			MsgBox(4096, @ScriptName & $sAbout, $sHelp)
-			Exit
-		Case "/RestartExplorer"
-			$sRestartExplorer = True
-		Case "/IgnoreCD"
-			$aDrives = DriveGetDrive("CDROM")
-			For $k = 1 To $aDrives[0]
-				$sIgnoreLetter &= StringLeft($aDrives[$k], 1)
-			Next
 		Case Else
-			$sSystemGuest = $CmdLine[$i]
+			If $sLogFile = "" Then
+				ConsoleWrite(@CRLF & $sUsage & @CRLF)
+				ConsoleWrite("Command Line: " & @ScriptName & " " & $CmdLineRaw & @CRLF & "Invalid Argument: " & $CmdLine[$i] & @CRLF)
+			Else
+				_LogOutN("Command Line: " & @ScriptName & " " & $CmdLineRaw & @CRLF & "Invalid Argument: " & $CmdLine[$i])
+			EndIf
+			Exit -1
 	EndSwitch
 	$i += 1
 WEnd
-_LogOutN("----- Start " & @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & "  Command Line: " & @ScriptName & $CmdLineRaw & @CRLF)
+
+_LogOutN("LetterSwap v" & FileGetVersion(@ScriptFullPath) & " Started " & @MDAY & "-" & @MON & "-" & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC)
+_LogOutN("Command Line: " & @ScriptName & " " & $CmdLineRaw & @CRLF)
+
+; Ignore the SystemDrive
 $sIgnoreLetter &= StringLeft(EnvGet('SystemDrive'), 1)
+
+; /MountAll
 If $iMountAll Then _MountAll()
+
+; /HideLetter
 If $iLetterClean Then _LetterClean('Removable;CDROM')
+
+; /Auto /Manual /WinDir
 If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system') Then
-	_LogOutN('Hosts System : ' & EnvGet('SystemRoot'))
+	_LogOutN('Host  System : ' & EnvGet('SystemRoot'))
 	_LogOutN('Guest System : ' & $sSystemGuest & @CRLF)
 	$sGuest = StringLeft($sSystemGuest, 2)
+	_LogOutN("Host Volume Information:")
 	_MountGet($sHostKey, $aMountHost)
 	_MountPrint('...... Host:  ' & $sHostKey, $aMountHost)
-	_RegLoadHive($sSystemGuest & '\system32\config\system', 'hklm\GuestSYSTEM')
+	_RegLoadHive($sSystemGuest & '\system32\config\system', 'HKLM\GuestSYSTEM')
 	_MountGet($sGuestKey, $aMountGuest)
-	_RegUnLoadHive('hklm\GuestSYSTEM')
+	_LogOutN("Guest Volume Information:")
+	_RegUnLoadHive('HKLM\GuestSYSTEM')
 	_MountPrint('...... Guest:  ' & $sHostKey, $aMountGuest)
 	For $i = 1 To UBound($aMountGuest, 1) - 1
 		_MountGet($sHostKey, $aMountHost)
@@ -132,15 +184,16 @@ If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system')
 		_MountSwap($sLetterHost, $sLetterGuest)
 	Next
 
+	; /Save
 	If $fSave Then
 		RegWrite('HKLM\SOFTWARE\LetterSwap', 'Guest', 'REG_SZ', StringLeft($sSystemGuest, 2))
 		RegWrite('HKLM\SOFTWARE\LetterSwap', 'SourceDrive', 'REG_SZ', $sHostDrive & ':')
 	EndIf
-
 EndIf
 
+; /SetLetter
 If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
-  $iWait=$iWait0
+	$iWait = $iWait0
 	While $iWait >= 0
 		$aDrives = DriveGetDrive('all')
 		For $i = 1 To UBound($aDrives) - 1
@@ -154,8 +207,9 @@ If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
 	WEnd
 EndIf
 
+; /Bootdrive
 If $sNewBootDrive <> '' Then
-  $iWait=$iWait0
+	$iWait = $iWait0
 	While $iWait >= 0
 		$sBootDrive = _GetBootDrive($sTagFile)
 		If $sBootDrive <> '' Then
@@ -168,6 +222,7 @@ If $sNewBootDrive <> '' Then
 	WEnd
 EndIf
 
+; /RestartExplorer
 If $sRestartExplorer Then
 	_LogOutN('Restart Explorer')
 	While ProcessExists("Explorer.exe")
@@ -177,13 +232,13 @@ If $sRestartExplorer Then
 	Run("Explorer.exe")
 EndIf
 
-_LogOutN('-----------------------------------------------------------------------------------------------------')
+; Display current Mount Points now that we are finished processing
 _MountGet($sHostKey, $aMountHost)
+_LogOutN(@CRLF & "Current Host Volume Information:")
 _MountPrint('...... Host:  ' & $sHostKey, $aMountHost)
-_LogOutN('-----------------------------------------------------------------------------------------------------')
-_LogOutN("----- Finish  " & @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & @CRLF)
 
-Exit
+_LogOutN("LetterSwap Finished " & @MDAY & "-" & @MON & "-" & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & @CRLF)
+Exit 0 ; Done!
 
 Func _GetBootDrive($sTagFile)
 	Local $vDriveList, $i, $i1, $hF, $bData
@@ -198,7 +253,7 @@ Func _GetBootDrive($sTagFile)
 			$vDriveList = 'REMOVABLE,FIXED,NETWORK'
 		Case Else
 			$vDriveList = 'REMOVABLE,FIXED,NETWORK,CDROM'
-  EndSwitch
+	EndSwitch
 	$vDriveList = StringSplit($vDriveList, ',', 2)
 	For $i = 0 To UBound($vDriveList) - 1
 		Local $asDriveLetter = DriveGetDrive($vDriveList[$i])
@@ -216,7 +271,7 @@ Func _GetBootDrive($sTagFile)
 					FileSetPos($hF, FileGetSize($asDriveLetter[$i1] & $vTmp[3]) - 32768, 0)
 					$bData = FileRead($hF)
 					FileClose($hF)
-					If StringInStr(StringMid($bData,3), StringMid(_FileRead(EnvGet('SystemDrive') & '\$WIMDESC', 16),3)) = 0 Then ContinueLoop
+					If StringInStr(StringMid($bData, 3), StringMid(_FileRead(EnvGet('SystemDrive') & '\$WIMDESC', 16), 3)) = 0 Then ContinueLoop
 				EndIf
 				Return $asDriveLetter[$i1]
 			EndIf
@@ -291,8 +346,7 @@ EndFunc   ;==>_LetterClean
 
 Func _LogOut($sStr = '')
 	Switch $sLogFile
-		Case ''
-		Case 'con:'
+		Case '', 'con:'
 			ConsoleWrite($sStr)
 		Case Else
 			FileWrite($sLogFile, $sStr)
@@ -313,20 +367,22 @@ Func _MountPrint($sStr, ByRef $asMount)
 EndFunc   ;==>_MountPrint
 
 Func _MountAll()
-	Local $i, $sFreeLetter, $sGuids = ',', $sGuid
-	Local $aDrives = DriveGetDrive('all')
-	For $i = 1 To UBound($aDrives) - 1
-		$sGuids &= _WinAPI_GetVolumeNameForVolumeMountPoint($aDrives[$i] & '\') & ','
-	Next
-	For $i = 1 To 999
-		$sGuid = '\\?\Volume' & RegEnumKey('HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\CPC\Volume', $i) & '\'
-		If @error Then ExitLoop
-		If StringInStr($sGuids, $sGuid) > 0 Then ContinueLoop
-		$sFreeLetter = _FreeLetter()
-		_WinAPI_SetVolumeMountPoint($sFreeLetter, $sGuid)
-		$sGuids &= $sGuid & ','
-		_LogOutN('Mount ' & $sFreeLetter & ' ' & $sGuid)
-	Next
+	Local $i, $sFreeLetter, $WMIService, $WMIVolumes, $WMIMountPoints, $collectOutPut = ''
+
+	$WMIService = ObjGet("winmgmts:\\.\root\cimv2")
+	$WMIVolumes = $WMIService.ExecQuery("Select * from Win32_Volume Where DriveType=3 or DriveType=5")
+
+	If IsObj($WMIVolumes) Then
+		For $Volume In $WMIVolumes
+			$collectOutPut = $collectOutPut & "DriveLetter: " & $Volume.DriveLetter & "    Name: " & $Volume.Name & "    DeviceID: " & $Volume.DeviceID & @CRLF
+			If IsKeyword($Volume.DriveLetter) Or $Volume.DriveLetter = "" Then
+				$sFreeLetter = _FreeLetter()
+				$Volume.AddMountPoint($sFreeLetter)
+				_LogOutN('Mount ' & $sFreeLetter & ' ' & $Volume.DeviceID)
+			EndIf
+		Next
+		_LogOutN("Volume Information (MountAll)" & @CRLF & "------------------------------" & @CRLF & $collectOutPut)
+	EndIf
 EndFunc   ;==>_MountAll
 
 Func _MountGet($sHostKey, ByRef $asMount)
