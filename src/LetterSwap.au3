@@ -8,9 +8,9 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2024.5.27.79
+#AutoIt3Wrapper_Res_Fileversion=2025.10.13.80
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2024.5.27
+#AutoIt3Wrapper_Res_ProductVersion=2025.10.13
 #AutoIt3Wrapper_Res_LegalCopyright=(c) Nikzzzz, Homes32 & Contributors
 #AutoIt3Wrapper_Res_Language=1033
 #AutoIt3Wrapper_Run_Au3Stripper=y
@@ -35,7 +35,7 @@ Global $sHelp = @CRLF & "Swap drive letters and/or synchronize letters of disks 
 		& "  /MountAll                            Mount inactive disks to the first available drive letter." & @CRLF _
 		& "  /Swap <DriveLetter1> <DriveLetter2>  Swap the specified drive letters." & @CRLF _
 		& "                                         Ex. LetterSwap.exe /Swap D: E:" & @CRLF _
-		& "  /Auto                                Find the first guest OS." & @CRLF _
+		& "  /Auto                                Find the first guest Windows OS." & @CRLF _
 		& "  /Manual                              Display a dialog prompting to select the guest OS Windows directory." & @CRLF _
 		& "  /WinDir <Path>                       Specify the directory of the guest OS. (Ex. D:\Windows)" & @CRLF _
 		& "  /BootDrive <NewLetter>:              Assigns the boot disk the specified drive letter." & @CRLF _
@@ -44,7 +44,7 @@ Global $sHelp = @CRLF & "Swap drive letters and/or synchronize letters of disks 
 		& "  /SetLetter <NewLetter>:\<TagFile>    Search for <TagFile> and assign the disk the specified drive letter." & @CRLF _
 		& "                                         Ex. Letterswap.exe /SetLetter Z:\File.tag" & @CRLF _
 		& "  /Wait <Seconds>                      Used in conjunction with /BootDrive or /SetLetter to define the number of" & @CRLF _
-        & "                                       seconds to wait for drives to become available." & @CRLF _
+		& "                                       seconds to wait for drives to become available." & @CRLF _
 		& "  /Save                                When used in conjunction with /Auto, /Manual, or /WinDir save the Guest" & @CRLF _
 		& "                                       and Source drive letters to the registry (HKLM\SOFTWARE\LetterSwap)." & @CRLF _
 		& "  /RestartExplorer                     Restart Explorer.exe after letter change." & @CRLF _
@@ -64,7 +64,7 @@ EndIf
 Global $sHostKey = "HKEY_LOCAL_MACHINE\SYSTEM\MountedDevices"
 Global $sGuestKey = "HKEY_LOCAL_MACHINE\GuestSYSTEM\MountedDevices"
 Global $aMountHost[1][2], $aMountGuest[1][2], $sIgnoreLetter = '', $sLogFile = '', $sSystemGuest = '', $sBootDrive = '', $sGuestKey, $sTagFile = '', $sTagFile1 = '', $iLetterClean = 0, $iMountAll = 0
-Global $sNewBootDrive = '', $s = "", $i = 1, $iWait0 = 100, $iWait, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
+Global $iAutoDetectSystemGuest = 0, $sNewBootDrive = '', $s = "", $i = 1, $iWait0 = 100, $iWait, $fSave = False, $sGuest = '', $sRestartExplorer = False, $sHostDrive = StringLeft(EnvGet('SourceDrive'), 1)
 Local $aDrives, $sLetterGuest, $sLetterHost, $sNewDrive1 = ''
 
 ; Process Cmdline
@@ -78,13 +78,7 @@ While $i <= $CmdLine[0]
 		Case "/MountAll"
 			$iMountAll = 1
 		Case "/Auto"
-			$aDrives = DriveGetDrive("FIXED")
-			For $k = 1 To $aDrives[0]
-				If $aDrives[$k] <> EnvGet("SystemDrive") And FileExists($aDrives[$k] & '\windows\system32\config\system') Then
-					$sSystemGuest = $aDrives[$k] & '\windows'
-					ExitLoop
-				EndIf
-			Next
+			$iAutoDetectSystemGuest = 1
 		Case "/Manual"
 			$sSystemGuest = FileSelectFolder("Select the OS directory (Example: d:\Windows)", 1)
 		Case "/WinDir"
@@ -155,7 +149,19 @@ If $iMountAll Then _MountAll()
 ; /HideLetter
 If $iLetterClean Then _LetterClean('Removable;CDROM')
 
-; /Auto /Manual /WinDir
+; /Auto
+If $iAutoDetectSystemGuest Then
+	$aDrives = DriveGetDrive("FIXED")
+	For $k = 1 To $aDrives[0]
+		If $aDrives[$k] <> EnvGet("SystemDrive") And FileExists($aDrives[$k] & '\windows\system32\config\system') Then
+			$sSystemGuest = $aDrives[$k] & '\windows'
+			ExitLoop
+		EndIf
+	Next
+EndIf
+
+; If we found a valid Guest Windows OS (or the user supplied a valid guest os via /Manual and/or /WinDir)
+; get the list of mounted drives from it's registry and mount them.
 If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system') Then
 	_LogOutN('Host  System : ' & EnvGet('SystemRoot'))
 	_LogOutN('Guest System : ' & $sSystemGuest & @CRLF)
@@ -318,7 +324,7 @@ Func _Reverse($sStr)
 	Return $sRet
 EndFunc   ;==>_Reverse
 
-Func _FreeLetter()
+Func _GetFreeDriveLetter()
 	Local $sFreeLetter = '', $i
 	For $i = Asc("c") To Asc("z")
 		If DriveGetType(Chr($i) & ':\') = '' Then
@@ -327,7 +333,7 @@ Func _FreeLetter()
 		EndIf
 	Next
 	Return $sFreeLetter
-EndFunc   ;==>_FreeLetter
+EndFunc   ;==>_GetFreeDriveLetter
 
 Func _LetterClean($sdrivetype)
 	_MountAll()
@@ -376,7 +382,7 @@ Func _MountAll()
 		For $Volume In $WMIVolumes
 			$collectOutPut = $collectOutPut & "DriveLetter: " & $Volume.DriveLetter & "    Name: " & $Volume.Name & "    DeviceID: " & $Volume.DeviceID & @CRLF
 			If IsKeyword($Volume.DriveLetter) Or $Volume.DriveLetter = "" Then
-				$sFreeLetter = _FreeLetter()
+				$sFreeLetter = _GetFreeDriveLetter()
 				$Volume.AddMountPoint($sFreeLetter)
 				_LogOutN('Mount ' & $sFreeLetter & ' ' & $Volume.DeviceID)
 			EndIf
