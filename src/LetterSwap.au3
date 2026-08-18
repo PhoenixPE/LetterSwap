@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2025.10.13.80
+#AutoIt3Wrapper_Res_Fileversion=2025.10.13.81
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
 #AutoIt3Wrapper_Res_ProductVersion=2025.10.13
 #AutoIt3Wrapper_Res_LegalCopyright=(c) Nikzzzz, Homes32 & Contributors
@@ -48,9 +48,9 @@ Global $sHelp = @CRLF & "Swap drive letters and/or synchronize letters of disks 
 		& "  /Save                                When used in conjunction with /Auto, /Manual, or /WinDir save the Guest" & @CRLF _
 		& "                                       and Source drive letters to the registry (HKLM\SOFTWARE\LetterSwap)." & @CRLF _
 		& "  /RestartExplorer                     Restart Explorer.exe after letter change." & @CRLF _
-		& "  /IgnoreLetter <Letter>[...]          When used in conjunction with /Auto, /Manual, or /WinDir ignore the specified" & @CRLF _
-		& "                                       drive letters. (The system drive and letters y,z are always ignored.)" & @CRLF _
-		& "                                         Ex. Letterswap.exe /IgnoreLetter abde" & @CRLF _
+		& "  /IgnoreLetter <Letter>[...]          When used in conjunction with /Auto, /Manual, /WinDir, or MountAll ignore the specified" & @CRLF _
+		& "                                       drive letters. (The system drive, A:, B: are always ignored.)" & @CRLF _
+		& "                                         Ex. Letterswap.exe /IgnoreLetter def" & @CRLF _
 		& "  /IgnoreCD                            When used in conjunction with /Auto, /Manual, or /WinDir ignore all drive" & @CRLF _
 		& "                                       letters belonging to CDROM drives." & @CRLF _
 		& "  /Log <LogFile>|con:                  Output to the specified log file or console." & @CRLF _
@@ -326,7 +326,7 @@ EndFunc   ;==>_Reverse
 
 Func _GetFreeDriveLetter()
 	Local $sFreeLetter = '', $i
-	For $i = Asc("c") To Asc("z")
+	For $i = Asc("c") To Asc("z") ; Skip drives A: and B: as they are traditionally 'reserved' for floppy/ramdrive.
 		If DriveGetType(Chr($i) & ':\') = '' Then
 			$sFreeLetter = Chr($i) & ":\"
 			ExitLoop
