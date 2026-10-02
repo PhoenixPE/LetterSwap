@@ -8,9 +8,9 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=LetterSwap.exe
 #AutoIt3Wrapper_Res_Description=LetterSwap.exe
-#AutoIt3Wrapper_Res_Fileversion=2025.10.13.81
+#AutoIt3Wrapper_Res_Fileversion=2026.8.17.89
 #AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
-#AutoIt3Wrapper_Res_ProductVersion=2025.10.13
+#AutoIt3Wrapper_Res_ProductVersion=2026.08.17.87
 #AutoIt3Wrapper_Res_LegalCopyright=(c) Nikzzzz, Homes32 & Contributors
 #AutoIt3Wrapper_Res_Language=1033
 #AutoIt3Wrapper_Run_Au3Stripper=y
@@ -19,6 +19,7 @@
 ; AutoIt 3.3.16.1
 
 #include <WinAPIFiles.au3>
+#include <WinAPIError.au3>
 #include ".\Reg.au3"
 #include ".\SecurityEx.au3"
 
@@ -137,8 +138,9 @@ While $i <= $CmdLine[0]
 	$i += 1
 WEnd
 
-_LogOutN("LetterSwap v" & FileGetVersion(@ScriptFullPath) & " Started " & @MDAY & "-" & @MON & "-" & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC)
-_LogOutN("Command Line: " & @ScriptName & " " & $CmdLineRaw & @CRLF)
+Local $hRunTimer = TimerInit()
+_LogOutN("===== LetterSwap v" & FileGetVersion(@ScriptFullPath) & " - Started " & _NowStamp() & " =====")
+_LogOutN("Command Line: " & @ScriptName & " " & $CmdLineRaw)
 
 ; Ignore the SystemDrive
 $sIgnoreLetter &= StringLeft(EnvGet('SystemDrive'), 1)
@@ -163,17 +165,16 @@ EndIf
 ; If we found a valid Guest Windows OS (or the user supplied a valid guest os via /Manual and/or /WinDir)
 ; get the list of mounted drives from it's registry and mount them.
 If $sSystemGuest <> '' And FileExists($sSystemGuest & '\system32\config\system') Then
-	_LogOutN('Host  System : ' & EnvGet('SystemRoot'))
-	_LogOutN('Guest System : ' & $sSystemGuest & @CRLF)
+	_LogOutN('Auto Host/Guest Sync...')
+	_LogOutN('  Host  System : ' & EnvGet('SystemRoot'))
+	_LogOutN('  Guest System : ' & $sSystemGuest)
 	$sGuest = StringLeft($sSystemGuest, 2)
-	_LogOutN("Host Volume Information:")
 	_MountGet($sHostKey, $aMountHost)
-	_MountPrint('...... Host:  ' & $sHostKey, $aMountHost)
+	_MountPrint('Host Volumes (' & $sHostKey & ')', $aMountHost)
 	_RegLoadHive($sSystemGuest & '\system32\config\system', 'HKLM\GuestSYSTEM')
 	_MountGet($sGuestKey, $aMountGuest)
-	_LogOutN("Guest Volume Information:")
 	_RegUnLoadHive('HKLM\GuestSYSTEM')
-	_MountPrint('...... Guest:  ' & $sHostKey, $aMountGuest)
+	_MountPrint('Guest Volumes (' & $sGuestKey & ')', $aMountGuest)
 	For $i = 1 To UBound($aMountGuest, 1) - 1
 		_MountGet($sHostKey, $aMountHost)
 		$sLetterGuest = $aMountGuest[$i][1]
@@ -199,38 +200,42 @@ EndIf
 
 ; /SetLetter
 If $sNewDrive1 <> '' And $sTagFile1 <> '' Then
+	_LogOutN('  Searching for tag file "' & $sTagFile1 & '" (up to ' & ($iWait0 / 10) & 's)...')
 	$iWait = $iWait0
 	While $iWait >= 0
 		$aDrives = DriveGetDrive('all')
 		For $i = 1 To UBound($aDrives) - 1
 			If Not FileExists($aDrives[$i] & '\' & $sTagFile1) Then ContinueLoop
-			_LogOutN('Found TagFile : "' & $aDrives[$i] & '\' & $sTagFile1 & '"')
+			_LogOutN('  Found "' & $aDrives[$i] & '\' & $sTagFile1 & '" -> assigning ' & $sNewDrive1)
 			_MountSwap($aDrives[$i], $sNewDrive1)
 			ExitLoop 2
 		Next
 		$iWait -= 1
 		Sleep(100)
 	WEnd
+	If $iWait < 0 Then _LogOutN('  Tag file not found, giving up.')
 EndIf
 
 ; /Bootdrive
 If $sNewBootDrive <> '' Then
+	_LogOutN('  Searching for the boot drive (up to ' & ($iWait0 / 10) & 's)...')
 	$iWait = $iWait0
 	While $iWait >= 0
 		$sBootDrive = _GetBootDrive($sTagFile)
 		If $sBootDrive <> '' Then
-			_LogOutN('Found BootDrive : "' & $sBootDrive & '"')
+			_LogOutN('  Found boot drive "' & $sBootDrive & '" -> assigning ' & $sNewBootDrive)
 			_MountSwap($sBootDrive, $sNewBootDrive)
 			ExitLoop
 		EndIf
 		$iWait -= 1
 		Sleep(100)
 	WEnd
+	If $iWait < 0 Then _LogOutN('  Boot drive not found, giving up.')
 EndIf
 
 ; /RestartExplorer
 If $sRestartExplorer Then
-	_LogOutN('Restart Explorer')
+	_LogOutN('Restarting Explorer')
 	While ProcessExists("Explorer.exe")
 		ProcessClose("Explorer.exe")
 		Sleep(500)
@@ -240,10 +245,9 @@ EndIf
 
 ; Display current Mount Points now that we are finished processing
 _MountGet($sHostKey, $aMountHost)
-_LogOutN(@CRLF & "Current Host Volume Information:")
-_MountPrint('...... Host:  ' & $sHostKey, $aMountHost)
-
-_LogOutN("LetterSwap Finished " & @MDAY & "-" & @MON & "-" & @YEAR & " " & @HOUR & ":" & @MIN & ":" & @SEC & @CRLF)
+_MountPrint('Final Host Volumes (' & $sHostKey & ')', $aMountHost)
+_LogOutN()
+_LogOutN("===== LetterSwap Finished " & _NowStamp() & " (elapsed " & StringFormat("%.1f", TimerDiff($hRunTimer) / 1000) & "s) =====" & @CRLF)
 Exit 0 ; Done!
 
 Func _GetBootDrive($sTagFile)
@@ -337,18 +341,22 @@ EndFunc   ;==>_GetFreeDriveLetter
 
 Func _LetterClean($sdrivetype)
 	_MountAll()
-	Local $i, $sFreeLetter, $asMount[1][3], $aRet[1]
+	Local $i, $asMount[1][3]
 	_MountGet($sHostKey, $asMount)
 	For $i = 1 To UBound($asMount) - 1
 		If StringInStr($sdrivetype, DriveGetType($asMount[$i][1])) And (StringInStr("ab", $asMount[$i][1]) = 0) Then
-			$aRet = DllCall('kernel32.dll', 'bool', 'GetVolumeInformationW', 'wstr', $asMount[$i][1], 'wstr', '', 'dword', 4096, 'dword*', 0, 'dword*', 0, 'dword*', 0, 'wstr', '', 'dword', 4096)
-			If @error Or Not $aRet[0] Then
-				If $asMount[$i][1] Then _WinAPI_DeleteVolumeMountPoint($asMount[$i][1] & ":\")
-				_LogOutN('UnMount ' & $asMount[$i][1])
+			_WinAPI_GetVolumeInformation($asMount[$i][1] & ':\')
+			If @error Then
+				_WinAPI_DeleteVolumeMountPoint($asMount[$i][1] & ':\')
+				_LogOutN('  Removing mount point ' & $asMount[$i][1] & ': (no media present)')
 			EndIf
 		EndIf
 	Next
 EndFunc   ;==>_LetterClean
+
+Func _NowStamp()
+	Return StringFormat("%04d-%02d-%02d %02d:%02d:%02d", @YEAR, @MON, @MDAY, @HOUR, @MIN, @SEC)
+EndFunc   ;==>_NowStamp
 
 Func _LogOut($sStr = '')
 	Switch $sLogFile
@@ -363,32 +371,46 @@ Func _LogOutN($sStr = '')
 	_LogOut($sStr & @CRLF)
 EndFunc   ;==>_LogOutN
 
-Func _MountPrint($sStr, ByRef $asMount)
+; Logs the real Win32 error for the WinAPI call that just failed. Must be called
+; immediately after that call, before any other WinAPI activity, since GetLastError()
+; reflects whichever call ran most recently.
+Func _LogWinApiError($sAction)
+	Local $iErr = _WinAPI_GetLastError()
+	Local $sMsg = _WinAPI_GetLastErrorMessage()
+	If $sMsg = '' Then $sMsg = 'no further details'
+	_LogOutN('  ERROR: ' & $sAction & ' failed. Returned: ' & $iErr & ' (' & $sMsg & ')')
+EndFunc   ;==>_LogWinApiError
+
+Func _MountPrint($sTitle, ByRef $asMount)
 	Local $i
-	_LogOutN($sStr)
+	_LogOutN($sTitle)
+	If UBound($asMount) <= 1 Then
+		_LogOutN('  (none)')
+		Return
+	EndIf
 	For $i = 1 To UBound($asMount) - 1
-		_LogOutN('"' & $asMount[$i][1] & ':"  "' & $asMount[$i][0] & '"')
+		_LogOutN('  ' & $asMount[$i][1] & ':   ' & $asMount[$i][0])
 	Next
-	_LogOutN()
 EndFunc   ;==>_MountPrint
 
 Func _MountAll()
-	Local $i, $sFreeLetter, $WMIService, $WMIVolumes, $WMIMountPoints, $collectOutPut = ''
+	Local $sFreeLetter, $WMIService, $WMIVolumes
 
 	$WMIService = ObjGet("winmgmts:\\.\root\cimv2")
 	$WMIVolumes = $WMIService.ExecQuery("Select * from Win32_Volume Where DriveType=3 or DriveType=5")
 
-	If IsObj($WMIVolumes) Then
-		For $Volume In $WMIVolumes
-			$collectOutPut = $collectOutPut & "DriveLetter: " & $Volume.DriveLetter & "    Name: " & $Volume.Name & "    DeviceID: " & $Volume.DeviceID & @CRLF
-			If IsKeyword($Volume.DriveLetter) Or $Volume.DriveLetter = "" Then
-				$sFreeLetter = _GetFreeDriveLetter()
-				$Volume.AddMountPoint($sFreeLetter)
-				_LogOutN('Mount ' & $sFreeLetter & ' ' & $Volume.DeviceID)
-			EndIf
-		Next
-		_LogOutN("Volume Information (MountAll)" & @CRLF & "------------------------------" & @CRLF & $collectOutPut)
-	EndIf
+	If Not IsObj($WMIVolumes) Then Return
+
+	_LogOutN('Mounting all drives...')
+	For $Volume In $WMIVolumes
+		If IsKeyword($Volume.DriveLetter) Or $Volume.DriveLetter = "" Then
+			$sFreeLetter = _GetFreeDriveLetter()
+			$Volume.AddMountPoint($sFreeLetter)
+			_LogOutN('  Mounted ' & $sFreeLetter & '  ' & $Volume.DeviceID & '  (' & $Volume.Name & ')')
+		Else
+			_LogOutN('  ' & $Volume.DriveLetter & '  ' & $Volume.DeviceID & '  (' & $Volume.Name & ')')
+		EndIf
+	Next
 EndFunc   ;==>_MountAll
 
 Func _MountGet($sHostKey, ByRef $asMount)
@@ -410,47 +432,62 @@ Func _MountGet($sHostKey, ByRef $asMount)
 	Next
 EndFunc   ;==>_MountGet
 
+; NOTE: _WinAPI_DeleteVolumeMountPoint() and _WinAPI_SetVolumeMountPoint()
+; (WinAPIFiles.au3) don't set @error when the underlying Win32 call genuinely
+; fails - @error there would only reflect a DllCall-marshalling problem,
+; not a real API failure. We must check the return value directly.
 Func _MountSwap($sDrive1, $sDrive2)
 	$sDrive1 = StringLeft($sDrive1, 1) & ':\'
 	$sDrive2 = StringLeft($sDrive2, 1) & ':\'
 	If $sDrive1 = $sDrive2 Then Return 1
-	Local $sGuid1 = _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive1)
-	Local $sGuid2 = _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive2)
+	Local $sLetter1 = StringLeft($sDrive1, 2), $sLetter2 = StringLeft($sDrive2, 2)
+	Local $sGuid1 = _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive1) ; volume currently at drive1
+	Local $sGuid2 = _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive2) ; volume currently at drive2
+
+	_LogOutN('Swapping "' & $sLetter1 & '" <-> "' & $sLetter2 & '"...')
+
 	While 1
 		If $sGuid1 Then
-			_WinAPI_DeleteVolumeMountPoint($sDrive1)
-			If @error Then
+			If Not _WinAPI_DeleteVolumeMountPoint($sDrive1) Then
+				_LogWinApiError('Freeing ' & $sLetter1)
 				$sGuid1 = ''
 				$sGuid2 = ''
 				ExitLoop
 			EndIf
 		EndIf
 		If $sGuid2 Then
-			_WinAPI_DeleteVolumeMountPoint($sDrive2)
-			If @error Then
+			If Not _WinAPI_DeleteVolumeMountPoint($sDrive2) Then
+				_LogWinApiError('Freeing ' & $sLetter2)
 				$sGuid2 = ''
 				ExitLoop
 			EndIf
 		EndIf
 		If $sGuid1 Then
-			_WinAPI_SetVolumeMountPoint($sDrive2, $sGuid1)
-			If @error Then
+			If Not _WinAPI_SetVolumeMountPoint($sDrive2, $sGuid1) Then
+				_LogWinApiError('Mounting ' & $sLetter1 & ' onto ' & $sLetter2)
+				ExitLoop
+			ElseIf _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive2) <> $sGuid1 Then
+				_LogOutN('  ERROR: Mounting ' & $sLetter1 & ' onto ' & $sLetter2 & ' reported success, but ' & $sLetter2 & ' does not match the expected volume.')
 				ExitLoop
 			EndIf
 		EndIf
 		If $sGuid2 Then
-			_WinAPI_SetVolumeMountPoint($sDrive1, $sGuid2)
-			If @error Then
+			If Not _WinAPI_SetVolumeMountPoint($sDrive1, $sGuid2) Then
+				_LogWinApiError('Mounting ' & $sLetter2 & ' onto ' & $sLetter1)
+				_WinAPI_DeleteVolumeMountPoint($sDrive2)
+				ExitLoop
+			ElseIf _WinAPI_GetVolumeNameForVolumeMountPoint($sDrive1) <> $sGuid2 Then
+				_LogOutN('  ERROR: Mounting ' & $sLetter2 & ' onto ' & $sLetter1 & ' reported success, but ' & $sLetter1 & ' does not match the expected volume.')
 				_WinAPI_DeleteVolumeMountPoint($sDrive2)
 				ExitLoop
 			EndIf
 		EndIf
-		_LogOutN('Swap letter "' & StringLeft($sDrive1, 2) & '" <> "' & StringLeft($sDrive2, 2) & '"')
+		_LogOutN('  SUCCESS: "' & $sLetter1 & '" <-> "' & $sLetter2 & '"')
 		Return 1
 	WEnd
-	If $sGuid1 Then _WinAPI_SetVolumeMountPoint($sDrive1, $sGuid1)
-	If $sGuid1 Then _WinAPI_SetVolumeMountPoint($sDrive2, $sGuid2)
-	_LogOutN('Swap letter "' & StringLeft($sDrive1, 2) & '" <> "' & StringLeft($sDrive2, 2) & '" - Error')
+	If $sGuid1 Then _WinAPI_SetVolumeMountPoint($sDrive1, $sGuid1) ; best-effort restore
+	If $sGuid2 Then _WinAPI_SetVolumeMountPoint($sDrive2, $sGuid2) ; best-effort restore
+	_LogOutN('  Swap failed - attempted to restore original letters.')
 	Return 0
 EndFunc   ;==>_MountSwap
 
